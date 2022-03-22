@@ -1,3 +1,4 @@
+import numpy as np
 from shapely.geometry import LineString, Point
 
 from report.data.trajectory_data import TrajectoryData
@@ -8,18 +9,20 @@ class VelocityCalculator:
 
     Attributes:
          frame_step (int): gives the size of time interval for calculating the velocity
-         set_movement_direction (str): indicates in which direction the velocity will be projected
+         measurement_direction (np.ndarray): indicates in which direction the velocity will be projected
          ignore_backward_movement (bool):  indicates whether you want to ignore the movement opposite to
                                            the direction from `set_movement_direction`
     """
 
     frame_step: int
-    set_movement_direction: str
+    measurement_direction: np.ndarray = None
     ignore_backward_movement: bool
 
-    def __init__(self, frame_step: int, movement_direction: str, ignore_backward_movement: bool):
+    def __init__(
+        self, frame_step: int, movement_direction: np.ndarray, ignore_backward_movement: bool
+    ):
         self.frame_step = frame_step
-        self.set_movement_direction = movement_direction
+        self.measurement_direction = movement_direction
         self.ignore_backward_movement = ignore_backward_movement
 
     def compute_instantaneous_velocity(
@@ -33,17 +36,37 @@ class VelocityCalculator:
         Args:
             trajectory (TrajectoryData): trajectory data
             agent_id (int): id of the agent
-            frame: frame for which the velocity is calculated
+            frame (int): frame for which the velocity is calculated
 
         Returns:
             the instantaneous [in meter/second]
         """
         positions = trajectory.get_pedestrian_positions(frame, agent_id, self.frame_step)
         line = LineString(positions)
-        length = Point(line.coords[0]).distance(Point(line.coords[-1]))
-
         time_movement = (len(line.coords) - 1) * 1.0 / trajectory.frame_rate
 
+        if self.measurement_direction is None:
+            length = self.compute_length_without_movement_direction(line)
+        else:
+            length = self.compute_length_with_movement_direction(line)
         speed = length / time_movement
 
         return speed
+
+    def compute_length_with_movement_direction(
+        self,
+        movement: LineString,
+    ):
+        movement_vector = np.array(movement.coords[-1]) - np.array(movement.coords[0])
+
+        projected_length = np.dot(movement_vector, self.measurement_direction) / np.linalg.norm(
+            self.measurement_direction
+        )
+
+        return np.abs(projected_length)
+
+    def compute_length_without_movement_direction(
+        self,
+        movement: LineString,
+    ):
+        return Point(movement.coords[0]).distance(Point(movement.coords[-1]))

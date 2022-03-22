@@ -7,6 +7,7 @@ import pathlib
 from typing import Callable, Dict, List, Tuple, Union
 from xml.etree.ElementTree import Element, parse
 
+import numpy as np
 from shapely.geometry import LineString, Point
 
 from report.data.configuration import Configuration
@@ -337,11 +338,28 @@ def parse_velocity_calculator(xml_root: Element) -> VelocityCalculator:
         ),
     )
 
-    set_movement_direction = parse_xml_attrib(
+    movement_direction_str = parse_xml_attrib(
         velocity_root,
         "set_movement_direction",
         str,
     )
+
+    try:
+        movement_direction_str = movement_direction_str.replace("(", "").replace(")", "")
+        movement_direction = np.fromstring(movement_direction_str, dtype=float, sep=",")
+    except:
+        raise IniFileParseException(
+            f'The "set_movement_direction"-attribute needs to be a 2 element vector, but is '
+            f'"{velocity_root.attrib["set_movement_direction"]}". Please check your "velocity"-tag in '
+            f"your ini-file."
+        )
+
+    if movement_direction.size != 2:
+        raise IniFileValueException(
+            f"The velocity set_movement_direction needs to be a 2 element sized vector with "
+            f'non-zero length, e.g., "(1, 2)", but is "{movement_direction_str}". '
+            f"Please check your velocity tag in your ini-file."
+        )
 
     ignore_backward_movement_str = parse_xml_attrib(
         velocity_root,
@@ -357,4 +375,4 @@ def parse_velocity_calculator(xml_root: Element) -> VelocityCalculator:
         )
     ignore_backward_movement = ignore_backward_movement_str == "true"
 
-    return VelocityCalculator(frame_step, set_movement_direction, ignore_backward_movement)
+    return VelocityCalculator(frame_step, movement_direction, ignore_backward_movement)

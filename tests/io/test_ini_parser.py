@@ -2,11 +2,14 @@ import pathlib
 import xml.etree.ElementTree
 from typing import Dict, List
 
+import numpy as np
 import pytest
 from shapely.geometry import LineString, Point
 
 from report.application import Application
 from report.io.ini_parser import (
+    IniFileParseException,
+    IniFileValueException,
     parse_geometry_file,
     parse_measurement_lines,
     parse_output_directory,
@@ -565,10 +568,10 @@ def test_parse_measurement_lines_wrong_input(content, expected_message):
 @pytest.mark.parametrize(
     "frame_step, movement_direction, ignore_backward_movement",
     [
-        (10, "None", "True"),
-        (50, "Not used", "true"),
-        (1, "so can be", "False"),
-        (6, "anything", "FALSE"),
+        (10, "(1, 0)", "True"),
+        (50, "(2, 9)", "true"),
+        (1, "(0, -1)", "False"),
+        (6, "(0.25, -5)", "FALSE"),
     ],
 )
 def test_parse_velocity_parser_success(frame_step, movement_direction, ignore_backward_movement):
@@ -581,16 +584,20 @@ def test_parse_velocity_parser_success(frame_step, movement_direction, ignore_ba
     xml_content = get_ini_file_as_string(velocity_configuration)
     root = xml.etree.ElementTree.fromstring(xml_content)
 
+    movement_direction_str = movement_direction.replace("(", "").replace(")", "")
+
     ignore_backward_movement_bool = ignore_backward_movement.lower() == "true"
     expected_velocity_calculator = VelocityCalculator(
-        frame_step, movement_direction, ignore_backward_movement_bool
+        frame_step,
+        np.fromstring(movement_direction_str, dtype=float, sep=","),
+        ignore_backward_movement_bool,
     )
 
     velocity_calculator_from_file = parse_velocity_calculator(root)
     assert velocity_calculator_from_file.frame_step == expected_velocity_calculator.frame_step
-    assert (
-        velocity_calculator_from_file.set_movement_direction
-        == expected_velocity_calculator.set_movement_direction
+    assert np.array_equal(
+        velocity_calculator_from_file.measurement_direction,
+        expected_velocity_calculator.measurement_direction,
     )
     assert (
         velocity_calculator_from_file.ignore_backward_movement
@@ -601,31 +608,61 @@ def test_parse_velocity_parser_success(frame_step, movement_direction, ignore_ba
 @pytest.mark.parametrize(
     "frame_step, movement_direction, ignore_backward_movement, expected_message",
     [
-        (0, "None", "True", "The velocity frame_step needs to be a positive integer value, "),
-        (-50, "Not used", "True", "The velocity frame_step needs to be a positive integer value, "),
+        (0, "(1, 0)", "True", "The velocity frame_step needs to be a positive integer value, "),
+        (-50, "(-1, -4)", "True", "The velocity frame_step needs to be a positive integer value, "),
         (
             3.0,
-            "anything",
+            "(2, 0)",
             "foo",
             'The "frame_step"-attribute needs to be a int value,',
         ),
         (
             "not a integer point value",
-            "anything",
+            "(-4.0, -1.2)",
             "foo",
             'The "frame_step"-attribute needs to be a int value,',
         ),
         (
             1,
-            "so can be",
+            "(0.2, 0.3)",
             "",
             "The velocity ignore_backward_movement needs to be a boolean value ('True', 'False'),",
         ),
         (
             6,
-            "anything",
+            "(1, 0)",
             "foo",
             "The velocity ignore_backward_movement needs to be a boolean value ('True', 'False'),",
+        ),
+        (
+            6,
+            "1 0",
+            "true",
+            "The velocity set_movement_direction needs to be a 2 element sized vector with non-zero length",
+        ),
+        (
+            6,
+            "str",
+            "true",
+            "The velocity set_movement_direction needs to be a 2 element sized vector with non-zero length",
+        ),
+        (
+            1,
+            "1.",
+            "true",
+            "The velocity set_movement_direction needs to be a 2 element sized vector with non-zero length",
+        ),
+        (
+            1,
+            "(1. 0. 1)",
+            "true",
+            "The velocity set_movement_direction needs to be a 2 element sized vector with non-zero length",
+        ),
+        (
+            1,
+            "(0. 0.)",
+            "true",
+            "The velocity set_movement_direction needs to be a 2 element sized vector with non-zero length",
         ),
     ],
 )
@@ -641,7 +678,7 @@ def test_parse_velocity_parser_wrong_data(
     xml_content = get_ini_file_as_string(velocity_calculator)
     root = xml.etree.ElementTree.fromstring(xml_content)
 
-    with pytest.raises(ValueError) as error_info:
+    with pytest.raises(IniFileValueException) as error_info:
         parse_velocity_calculator(root)
     assert expected_message in str(error_info.value)
 
@@ -664,11 +701,11 @@ def test_parse_velocity_parser_wrong_data(
             'Could not find "frame_step"-attribute in "velocity"-tag,',
         ),
         (
-            '<velocity ignore_backward_movement="false" set_movement_direction="None"/>',
+            '<velocity ignore_backward_movement="false" set_movement_direction="(1, 0)"/>',
             'Could not find "frame_step"-attribute in "velocity"-tag,',
         ),
         (
-            '<velocity frame_step="10" set_movement_direction="None"/>',
+            '<velocity frame_step="10" set_movement_direction="(0.5, 1)"/>',
             'Could not find "ignore_backward_movement"-attribute in "velocity"-tag,',
         ),
         (
@@ -681,6 +718,6 @@ def test_parse_velocity_parser_wrong_input(content, expected_message):
     xml_content = get_ini_file_as_string(content)
     root = xml.etree.ElementTree.fromstring(xml_content)
 
-    with pytest.raises(ValueError) as error_info:
+    with pytest.raises(IniFileParseException) as error_info:
         parse_velocity_calculator(root)
     assert expected_message in str(error_info.value)
