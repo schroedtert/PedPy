@@ -63,7 +63,7 @@ class VelocityCalculator:
             self.measurement_direction
         )
 
-        return np.abs(projected_length)
+        return projected_length
 
     def compute_length_without_movement_direction(
         self,

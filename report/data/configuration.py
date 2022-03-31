@@ -10,6 +10,19 @@ from report.methods.velocity_calculator import VelocityCalculator
 
 
 @dataclass(frozen=True)
+class ConfigurationMethodCCM:
+    """Configuration for method_CCM
+    Attributes:
+        line_width(float): width of the measurement line (will become a polygon!)
+        cut_off_radius (float): max radius of voronoi cells (0 can lead to large polygons only bound
+            the geometry)
+    """
+
+    line_width: float = 0.0
+    cut_off_radius: float = 0.0
+
+
+@dataclass(frozen=True)
 class Configuration:
     """Configuration to be used in the analysis
 
@@ -21,7 +34,7 @@ class Configuration:
         measurement_areas (Dict[int, Polygon]): measurement areas to be used in the analysis
         measurement_lines (Dict[int, LineString]): measurement line to be used in the analysis
 
-        velocity_configuration (VelocityCalculator): VelocityCalculator calculator used in
+        velocity_calculator (VelocityCalculator): VelocityCalculator calculator used in
     """
 
     output_directory: pathlib.Path
@@ -31,4 +44,6 @@ class Configuration:
     measurement_areas: Dict[int, Polygon]
     measurement_lines: Dict[int, LineString]
 
-    velocity_configuration: VelocityCalculator
+    velocity_calculator: VelocityCalculator
+
+    config_method_ccm: Dict[int, ConfigurationMethodCCM]

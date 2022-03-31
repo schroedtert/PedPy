@@ -10,7 +10,7 @@ from xml.etree.ElementTree import Element, parse
 import numpy as np
 from shapely.geometry import LineString, Point
 
-from report.data.configuration import Configuration
+from report.data.configuration import Configuration, ConfigurationMethodCCM
 from report.methods.velocity_calculator import VelocityCalculator
 
 
@@ -102,13 +102,16 @@ def parse_ini_file(ini_file: pathlib.Path) -> Configuration:
     measurement_lines = parse_measurement_lines(root)
     velocity_calculator = parse_velocity_calculator(root)
 
+    method_ccm_configuration = parse_method_ccm_configuration(root)
+
     return Configuration(
         output_directory=output_directory,
         trajectory_files=trajectory_files,
         geometry_file=geometry_file,
         measurement_areas=measurement_areas,
         measurement_lines=measurement_lines,
-        velocity_configuration=velocity_calculator,
+        velocity_calculator=velocity_calculator,
+        config_method_ccm=method_ccm_configuration,
     )
 
 
@@ -376,3 +379,42 @@ def parse_velocity_calculator(xml_root: Element) -> VelocityCalculator:
     ignore_backward_movement = ignore_backward_movement_str == "true"
 
     return VelocityCalculator(frame_step, movement_direction, ignore_backward_movement)
+
+
+def parse_method_ccm_configuration(xml_root: Element) -> Dict[int, ConfigurationMethodCCM]:
+    """Parses the configuration for method_CCM from the given xml root
+    Args:
+        xml_root (ET.ElementTree):  root of the xml file
+    Returns:
+        configuration for method A per measurement line computation to use in the analysis
+    """
+    configurations = {}
+
+    for method_a in xml_root.iter("method_CCM"):
+        for config in method_a.iter("measurement_area"):
+            line_id = parse_xml_attrib(
+                config,
+                "id",
+                int,
+                (
+                    lambda x: x not in configurations,
+                    "There is a duplicated ID in your method a configurations: ",
+                ),
+            )
+
+            line_width = parse_xml_attrib(
+                config,
+                "line_width",
+                float,
+                (
+                    lambda x: x > 0,
+                    "The line width needs to be a positive floating point value but is: ",
+                ),
+                mandatory=False,
+            )
+            if line_width is None:
+                line_width = 0.0
+
+            configurations[line_id] = ConfigurationMethodCCM(line_width=line_width)
+
+    return configurations

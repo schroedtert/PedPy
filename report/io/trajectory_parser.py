@@ -4,6 +4,7 @@ TrajectoryData format.
 
 import pathlib
 
+import geopandas as gpd
 import pandas as pd
 
 from report.data.trajectory_data import TrajectoryData, TrajectoryType, TrajectoryUnit
@@ -75,7 +76,10 @@ def parse_trajectory_data(trajectory_file: pathlib.Path) -> pd.DataFrame:
                 f"line may start with a '#' and will be ignored. "
                 f"Please check your trajectory file: {trajectory_file}."
             )
-        return data
+
+        gdf = gpd.GeoDataFrame(data, geometry=gpd.points_from_xy(data["X"], data["Y"]))
+
+        return gdf
     except pd.errors.ParserError:
         raise ValueError(
             f"The given trajectory file could not be parsed. It should contain at least 5 columns: "

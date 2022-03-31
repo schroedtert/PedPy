@@ -6,6 +6,7 @@ from typing import List
 
 import pandas as pd
 from aenum import Enum, auto
+from geopandas import GeoDataFrame
 from shapely.geometry import Point
 
 
@@ -48,10 +49,18 @@ class TrajectoryData:
 
     """
 
-    _data: pd.DataFrame
+    _data: GeoDataFrame
     frame_rate: float
     trajectory_type: TrajectoryType
     file: pathlib.Path
+
+    def get_min_frame(self) -> int:
+        """Returns first frame for which data a position is recorded"""
+        return self._data["frame"].min()
+
+    def get_max_frame(self) -> int:
+        """Returns last frame for which data a position is recorded"""
+        return self._data["frame"].max()
 
     def get_pedestrian_positions(self, frame: int, pedestrian_id: int, window: int) -> List[Point]:
         """Return the pedestrian position within a given frame window.
@@ -88,3 +97,27 @@ class TrajectoryData:
         return [
             Point(row["X"], row["Y"]) for _, row in pedestrian_positions_frame_window.iterrows()
         ]
+
+    def get_positions(self, frame):
+        """Return the position of all pedestrians in a specific frame
+        Args:
+            frame (int): frame for which the positions are returned
+        Returns:
+            Dict from pedestrian id to Point(x,y) in frame
+        """
+        positions = self._data.loc[self._data["frame"] == frame][["ID", "X", "Y"]]
+        positions = positions.set_index("ID")
+        return {
+            agent_id: Point(position["X"], position["Y"])
+            for agent_id, position in positions.to_dict("index").items()
+        }
+        # positions = self._data.loc[self._data["frame"] == frame][["ID", "geometry"]]
+        # positions = positions.set_index("ID")
+        #
+        # foo = positions.to_dict("ID")
+        # return positions.to_dict("index")
+        #
+        # return {
+        #     agent_id: Point(position["X"], position["Y"])
+        #     for agent_id, positions in positions.to_dict("index").items()
+        # }
