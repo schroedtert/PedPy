@@ -34,7 +34,7 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -VV
           python3 -m site
-          python3 -m pip install --upgrade pip setuptools wheel
+          python3 -m pip install --upgrade pip setuptools wheel jupyter
           python3 -m pip install -r requirements.txt
 
       - name: Check format
@@ -90,3 +90,7 @@ jobs:
         run: |
           pita --version
           python3 -c "import analyzer"
+
+      - name: Run usage notebook
+        run: |
+          jupyter nbconvert --to notebook --execute usage.ipynb
