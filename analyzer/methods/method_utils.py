@@ -47,7 +47,9 @@ def get_peds_in_frame_range(
     return traj_data
 
 
-def compute_frame_range_in_area(traj: pd.DataFrame, measurement_area: pygeos.Geometry):
+def compute_frame_range_in_area(
+    traj: pd.DataFrame, measurement_area: pygeos.Geometry
+) -> pd.DataFrame:
     """Compute the frame ranges for each pedestrian inside the measurement area.
 
     Note:

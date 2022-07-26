@@ -1,13 +1,15 @@
 """Module containing functions to compute profiles"""
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
 import pygeos
+from numpy import ndarray
 
 
 def compute_profiles(
     individuaL_voronoi_velocity_data: pd.DataFrame, geometry: pygeos.Geometry, grid_size: float
-):
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Computes the density and velocity profiles of the given trajectory within the geometry
 
     Note: As this is a quite compute heavy operation, it is suggested to reduce the geometry to
@@ -53,7 +55,7 @@ def compute_profiles(
     return density_profiles, velocity_profiles
 
 
-def _get_grid_cells(geometry: pygeos.Geometry, grid_size: float):
+def _get_grid_cells(geometry: pygeos.Geometry, grid_size: float) -> Tuple[ndarray, int, int]:
     """Creates a list of square grid cells which cover the space used by geometry.
 
     Args:

@@ -1,6 +1,6 @@
 """Module containing functions to compute densities"""
 from collections import defaultdict
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -82,7 +82,7 @@ def compute_voronoi_density(
     return df_voronoi_density, df_individual
 
 
-def compute_passing_density(density_per_frame: pd.DataFrame, frames: pd.DataFrame):
+def compute_passing_density(density_per_frame: pd.DataFrame, frames: pd.DataFrame) -> pd.DataFrame:
     """Compute the individual density of the pedestrian who pass the area.
 
     Args:
@@ -201,7 +201,7 @@ def _compute_intersecting_polygons(
     return df_intersection
 
 
-def _clip_voronoi_polygons(voronoi, diameter):
+def _clip_voronoi_polygons(voronoi, diameter) -> List[pygeos.Geometry]:
     """Generate shapely.geometry.Polygon objects corresponding to the
     regions of a scipy.spatial.Voronoi object, in the order of the
     input points. The polygons for the infinite regions are large
