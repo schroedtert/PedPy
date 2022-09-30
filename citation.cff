@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+
+title: "Pedestrian Trajectory Analyzer"
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Schrödter"
+  given-names: "Tobias"
+  orcid: "https://orcid.org/0000-0002-1071-060X"
+version: 0.1
+url: "https://github.com/PedestrianDynamics/pedestrian-trajectory-analyzer"
+repository-code: "https://github.com/PedestrianDynamics/pedestrian-trajectory-analyzer"
