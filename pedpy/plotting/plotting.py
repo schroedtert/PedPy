@@ -230,6 +230,7 @@ def plot_voronoi_cells(  # pylint: disable=too-many-locals
             pedestrians, data needs to contain columns "X", and "Y"!
         ped_color (optional): color used to display current ped positions
         voronoi_border_color (optional): border color of Voronoi cells
+        voronoi_border_width (optional): line width of Voronoi cells
         voronoi_inside_ma_alpha (optional): alpha of part of Voronoi cell
             inside the measurement area, data needs to contain column
             "intersection voronoi"!
@@ -262,6 +263,7 @@ def plot_voronoi_cells(  # pylint: disable=too-many-locals
     ped_color = kwargs.get("ped_color", "w")
     ped_size = kwargs.get("ped_size", 1)
     voronoi_border_color = kwargs.get("voronoi_border_color", "w")
+    voronoi_border_width = kwargs.get("voronoi_border_width", 0.1)
     voronoi_inside_ma_alpha = kwargs.get("voronoi_inside_ma_alpha", 1)
     voronoi_outside_ma_alpha = kwargs.get("voronoi_outside_ma_alpha", 1)
 
@@ -310,7 +312,7 @@ def plot_voronoi_cells(  # pylint: disable=too-many-locals
         else:
             color = voronoi_colormap(row["ID"] % 20)
 
-        ax.plot(*poly.exterior.xy, alpha=1, color=voronoi_border_color)
+        ax.plot(*poly.exterior.xy, alpha=1, color=voronoi_border_color, lw=voronoi_border_width)
         ax.fill(*poly.exterior.xy, fc=color, alpha=voronoi_outside_ma_alpha)
 
         if not shapely.is_empty(row["intersection voronoi"]):
