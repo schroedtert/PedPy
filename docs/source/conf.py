@@ -30,42 +30,33 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosectionlabel",
-    "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx_design",
     "sphinx_copybutton",
     "sphinx.ext.viewcode",
     "sphinx.ext.todo",
-    "sphinx.ext.napoleon",
-    "sphinxcontrib.apidoc",
+    "autoapi.extension",
     "nbsphinx",
     "sphinx.ext.mathjax",
+    "notfound.extension",
 ]
 
-autodoc_typehints = "both"
+# automatic generation of api doc
+autoapi_dirs = [
+    "../../pedpy",
+]
+autoapi_root = "api"
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "show-inheritance",
+    "show-module-summary",
+    "imported-members",
+]
+autoapi_ignore = ["**/tests/**"]
+autoapi_member_order = ["groupwise"]
+autoapi_python_use_implicit_namespaces = False
 
-apidoc_module_dir = "../../pedpy"
-apidoc_output_dir = "api"
-apidoc_excluded_paths = ["tests"]
-apidoc_separate_modules = True
-apidoc_toc_file = "index"
-apidoc_extra_args = ["--implicit-namespaces", "-d 10"]
-apidoc_module_first = True
-
-# Napoleon settings
-napoleon_google_docstring = True
-napoleon_include_init_with_doc = False
-napoleon_include_private_with_doc = False
-napoleon_include_special_with_doc = True
-napoleon_use_admonition_for_examples = False
-napoleon_use_admonition_for_notes = False
-napoleon_use_admonition_for_references = False
-napoleon_use_ivar = False
-napoleon_use_param = True
-napoleon_use_rtype = False
-napoleon_preprocess_types = False
-napoleon_type_aliases = None
-napoleon_attr_annotations = True
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
