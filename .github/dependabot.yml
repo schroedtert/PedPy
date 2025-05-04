@@ -13,10 +13,10 @@ updates:
     groups:
       regular-dependencies:
         patterns:
-          - "requirements.txt"
-          - "pyproject.toml"
+          - "**/requirements.txt"
+          - "**/pyproject.toml"
         exclude-patterns:
-          - "docs/requirements.txt"
+          - "docs/**"
 
   # Check for updates to documentation-specific Python dependencies
   - package-ecosystem: "pip"
@@ -26,7 +26,7 @@ updates:
     groups:
       docs-dependencies:
         patterns:
-          - "docs/requirements.txt"
+          - "**/requirements.txt"
 
   # Check for updates to GitHub Actions
   - package-ecosystem: "github-actions"
