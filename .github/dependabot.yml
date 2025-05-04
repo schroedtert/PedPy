@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # Check for updates to regular Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/" # Root directory of the repository
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "numpy"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pandas"
+        update-types: ["version-update:semver-major"]
+    groups:
+      regular-dependencies:
+        patterns:
+          - "**/requirements.txt"
+          - "**/pyproject.toml"
+        exclude-patterns:
+          - "docs/**"
+      docs-dependencies:
+        patterns:
+          - "docs/requirements.txt"
+
+  # Check for updates to GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
