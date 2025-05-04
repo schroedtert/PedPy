@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Check for updates to Python dependencies
+  # Check for updates to regular Python dependencies
   - package-ecosystem: "pip"
     directory: "/" # Root directory of the repository
     schedule:
@@ -10,9 +10,25 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "pandas"
         update-types: ["version-update:semver-major"]
+    groups:
+      regular-dependencies:
+        patterns:
+          - "requirements.txt"
+          - "pyproject.toml"
+
+  # Check for updates to documentation-specific Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/docs" # Directory for documentation dependencies
+    schedule:
+      interval: "weekly"
+    groups:
+      docs-dependencies:
+        patterns:
+          - "docs/requirements.txt"
 
   # Check for updates to GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
