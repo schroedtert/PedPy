@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # General Python dependencies (main requirements and pyproject.toml)
+  - package-ecosystem: "pip"
+    directory: "/"  # Location of requirements.txt and pyproject.toml
+    schedule:
+      interval: "weekly"
+    groups:
+      general-dependencies:
+        patterns:
+          - "*"
+    allow:
+      - dependency-type: "all"
+
