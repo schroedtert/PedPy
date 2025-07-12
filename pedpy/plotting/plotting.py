@@ -1359,7 +1359,7 @@ def plot_voronoi_cells(  # noqa: PLR0912,PLR0915
             "intersection"!
         voronoi_outside_ma_alpha (optional): alpha of part of Voronoi cell
             outside the measurement area
-        color_by_column (str, optional): Optioanlly provide a column name to
+        color_by_column (str, optional): Optionally provide a column name to
             specify the data to color the cell. Only supports Integer and
             Float data types. E.g. color_by_column `DENSITY_COL`
         vmin (optional): vmin of colormap, only used when color_mode != "id"
@@ -1378,7 +1378,7 @@ def plot_voronoi_cells(  # noqa: PLR0912,PLR0915
         line_width (optional): line width of the borders
         hole_color (optional): background color of holes
         hole_alpha (optional): alpha of background color for holes
-        cmap (optional): colormap used for
+        cmap (optional): colormap used for coloring the cells
     Returns:
         matplotlib.axes.Axes instance where the Voronoi cells are plotted
     """
