@@ -3,6 +3,8 @@
     <img src="docs/source/_static/logo_text.svg" height="100px" alt="PedPy Logo">
 </div>
 
+foo
+
 -----------------
 [![PyPI Latest Release](https://img.shields.io/pypi/v/pedpy.svg)](https://pypi.org/project/pedpy/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pedpy)
