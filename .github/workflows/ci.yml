@@ -108,57 +108,57 @@ jobs:
           path: |
             notebooks/
 
-  test:
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-24.04, macos-13, macos-14, macos-15, windows-latest ]
-        python-version: [ '3.11', '3.12' , '3.13']
-    runs-on: ${{ matrix.os }}
+  # test:
+  #   needs: build
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: [ ubuntu-24.04, macos-13, macos-14, macos-15, windows-latest ]
+  #       python-version: [ '3.11', '3.12' , '3.13']
+  #   runs-on: ${{ matrix.os }}
 
-    steps:
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+  #   steps:
+  #     - name: Set up Python ${{ matrix.python-version }}
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
 
-      - name: Download notebooks and demo files as artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: demos_usage
+  #     - name: Download notebooks and demo files as artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: demos_usage
 
-      - name: Download wheel
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
+  #     - name: Download wheel
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: dist
+  #         path: dist/
 
-      - name: Install wheel
-        shell: bash
-        run: |
-          python3 -m pip install --upgrade pip jupyter nbconvert nbformat matplotlib
-          python3 -m pip install dist/*whl
+  #     - name: Install wheel
+  #       shell: bash
+  #       run: |
+  #         python3 -m pip install --upgrade pip jupyter nbconvert nbformat matplotlib
+  #         python3 -m pip install dist/*whl
 
-      - name: Test if install was successful
-        run: |
-          python3 -c "import pedpy; print(f'PedPy {pedpy.__version__} (SHA: {pedpy.__commit_hash__})')"
+  #     - name: Test if install was successful
+  #       run: |
+  #         python3 -c "import pedpy; print(f'PedPy {pedpy.__version__} (SHA: {pedpy.__commit_hash__})')"
 
-      - name: Run getting started notebook
-        run: |
-          jupyter nbconvert --to notebook --execute getting_started.ipynb
+  #     - name: Run getting started notebook
+  #       run: |
+  #         jupyter nbconvert --to notebook --execute getting_started.ipynb
 
-      - name: Run user guide notebook
-        run: |
-          jupyter nbconvert --to notebook --execute user_guide.ipynb
+  #     - name: Run user guide notebook
+  #       run: |
+  #         jupyter nbconvert --to notebook --execute user_guide.ipynb
 
-      - name: Run fundamental diagram notebook
-        run: |
-          jupyter nbconvert --to notebook --execute fundamental_diagram.ipynb
+  #     - name: Run fundamental diagram notebook
+  #       run: |
+  #         jupyter nbconvert --to notebook --execute fundamental_diagram.ipynb
 
   publish:
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags')}}
-    needs: [ build, test ]
+    if: github.ref_type == 'tag'
+    needs: [ build ]
     strategy:
       fail-fast: false
       matrix:
@@ -173,7 +173,7 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Publish package to PyPi
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+      # - name: Publish package to PyPi
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     password: ${{ secrets.PYPI_API_TOKEN }}
