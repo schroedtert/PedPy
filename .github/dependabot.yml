@@ -4,17 +4,29 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    groups:
+      general-dependencies:
+        patterns:
+          - "*"
     ignore:
       - dependency-name: "numpy"
         update-types: ["version-update:semver-major"]
       - dependency-name: "pandas"
         update-types: ["version-update:semver-major"]
-
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
     groups:
       github-actions-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      pre-commit-dependencies:
         patterns:
           - "*"
