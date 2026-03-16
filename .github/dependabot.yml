@@ -35,5 +35,3 @@ updates:
       pre-commit-dependencies:
         patterns:
           - "*"
-    allow:
-      - dependency-type: "all"
