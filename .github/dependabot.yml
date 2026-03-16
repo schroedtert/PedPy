@@ -30,7 +30,7 @@ updates:
   - package-ecosystem: "pre-commit"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
     groups:
       pre-commit-dependencies:
         patterns:
