@@ -8,8 +8,6 @@ updates:
       general-dependencies:
         patterns:
           - "*"
-    allow:
-      - dependency-type: "all"
     ignore:
       - dependency-name: "numpy"
         update-types: ["version-update:semver-major"]
@@ -24,8 +22,6 @@ updates:
       github-actions-dependencies:
         patterns:
           - "*"
-    allow:
-      - dependency-type: "all"
 
   - package-ecosystem: "pre-commit"
     directory: "/"
