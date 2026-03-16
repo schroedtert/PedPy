@@ -26,3 +26,14 @@ updates:
           - "*"
     allow:
       - dependency-type: "all"
+
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      pre-commit-dependencies:
+        patterns:
+          - "*"
+    allow:
+      - dependency-type: "all"
