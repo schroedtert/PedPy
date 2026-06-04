@@ -7,6 +7,7 @@ import warnings
 from typing import Any, List, Optional
 
 import matplotlib as mpl
+import matplotlib.animation
 import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1639,6 +1640,286 @@ def plot_trajectories(
     axes.set_ylabel(y_label)
 
     return axes
+
+
+def animate_trajectories(
+    *,
+    traj: TrajectoryData,
+    walkable_area: Optional[WalkableArea] = None,
+    measurement_areas: Optional[List[MeasurementArea]] = None,
+    measurement_lines: Optional[List[MeasurementLine]] = None,
+    color_data: Optional[pd.DataFrame] = None,
+    color_column: Optional[str] = None,
+    frame_step: int = 1,
+    interval: Optional[float] = None,
+    trail_length: int = 0,
+    axes: Optional[matplotlib.axes.Axes] = None,
+    **kwargs: Any,
+) -> matplotlib.animation.FuncAnimation:
+    """Animate trajectory positions frame-by-frame.
+
+    Returns a :class:`matplotlib.animation.FuncAnimation` that the caller
+    renders in the appropriate context:
+
+    - Jupyter: ``from IPython.display import HTML; HTML(anim.to_jshtml())``
+    - Interactive window: ``plt.show()``
+    - File: ``anim.save("output.mp4")`` (requires *ffmpeg*) or
+      ``anim.save("output.gif")`` (requires *Pillow*)
+
+    Args:
+        traj (TrajectoryData): trajectory to animate
+        walkable_area (WalkableArea, optional): displayed as static background
+        measurement_areas (List[MeasurementArea], optional): displayed as
+            static background
+        measurement_lines (List[MeasurementLine], optional): displayed as
+            static background
+        color_data (pd.DataFrame, optional): per-pedestrian per-frame scalar
+            values used to color the markers. Must contain
+            :data:`~pedpy.column_identifier.ID_COL` and
+            :data:`~pedpy.column_identifier.FRAME_COL` plus the column named
+            by *color_column* (e.g. output of
+            :func:`~pedpy.methods.speed_calculator.compute_individual_speed`).
+        color_column (str, optional): column in *color_data* to map to marker
+            colors. Required when *color_data* is provided.
+        frame_step (int): step between animated frames (default 1)
+        interval (float, optional): delay between frames in milliseconds.
+            Defaults to ``1000 / frame_rate`` so the animation plays at
+            real-time speed.
+        trail_length (int): number of past frames to draw as a fading trail
+            behind each pedestrian. 0 = no trail (default). Pass a large
+            number (e.g. 10 000) to show the full trajectory history.
+        axes (matplotlib.axes.Axes, optional): axes to draw on;
+            a new figure is created when None
+        kwargs: additional appearance parameters, see below
+
+    Keyword Args:
+        ped_color (optional): marker color when *color_data* is not provided
+        ped_size (optional): marker size (default 20)
+        ped_marker (optional): marker style (default ``"o"``)
+        ped_alpha (optional): marker alpha (default 1.0)
+        cmap (optional): colormap name when *color_data* is provided
+            (default ``"jet"``)
+        vmin (optional): colormap lower bound (default: data minimum)
+        vmax (optional): colormap upper bound (default: data maximum)
+        cb_label (optional): colorbar label (defaults to *color_column* name)
+        ma_line_color (optional): border color of measurement areas
+        ma_line_width (optional): border line width of measurement areas
+        ma_color (optional): fill color of measurement areas
+        ma_alpha (optional): fill alpha of measurement areas
+        ml_color (optional): color of measurement lines
+        ml_width (optional): line width of measurement lines
+        trail_color (optional): color of the trail lines (default: same as
+            *ped_color*)
+        trail_width (optional): line width of the trail (default 1.0)
+        border_line_color (optional): walkable area border color
+        border_line_width (optional): walkable area border line width
+        hole_color (optional): color of walkable area holes
+        hole_alpha (optional): alpha of walkable area holes
+        title (optional): axes title
+        x_label (optional): x-axis label
+        y_label (optional): y-axis label
+
+    Returns:
+        :class:`matplotlib.animation.FuncAnimation`
+    """
+    ped_color = kwargs.pop("ped_color", PEDPY_BLUE)
+    ped_size = kwargs.pop("ped_size", 20)
+    ped_marker = kwargs.pop("ped_marker", "o")
+    ped_alpha = kwargs.pop("ped_alpha", 1.0)
+    trail_color_rgb = np.array(to_rgb(kwargs.pop("trail_color", ped_color)))
+    trail_width = kwargs.pop("trail_width", 1.0)
+    cmap_name = kwargs.pop("cmap", "jet")
+    vmin = kwargs.pop("vmin", None)
+    vmax = kwargs.pop("vmax", None)
+    cb_label = kwargs.pop("cb_label", None)
+
+    ma_line_color = kwargs.pop("ma_line_color", PEDPY_BLUE)
+    ma_line_width = kwargs.pop("ma_line_width", 1.0)
+    ma_color = kwargs.pop("ma_color", PEDPY_BLUE)
+    ma_alpha = kwargs.pop("ma_alpha", 0.2)
+    ml_color = kwargs.pop("ml_color", PEDPY_BLUE)
+    ml_width = kwargs.pop("ml_width", 1.0)
+
+    title = kwargs.pop("title", "")
+    x_label = kwargs.pop("x_label", "x / m")
+    y_label = kwargs.pop("y_label", "y / m")
+
+    if axes is None:
+        _, axes = plt.subplots()
+    fig = axes.get_figure()
+
+    # Draw static background elements once
+    if walkable_area is not None:
+        plot_walkable_area(walkable_area=walkable_area, axes=axes, **kwargs)
+
+    if measurement_areas is not None:
+        for ma in measurement_areas:
+            _plot_polygon(
+                axes=axes,
+                polygon=ma.polygon,
+                line_color=ma_line_color,
+                line_width=ma_line_width,
+                polygon_alpha=ma_alpha,
+                polygon_color=ma_color,
+            )
+
+    if measurement_lines is not None:
+        for ml in measurement_lines:
+            axes.plot(*ml.xy, color=ml_color, linewidth=ml_width)
+
+    # Fix axis limits before animation so they don't shift per frame
+    x_min, y_min, x_max, y_max = walkable_area.bounds if walkable_area is not None else traj.bounds
+    margin_x = 0.05 * (x_max - x_min) or 0.5
+    margin_y = 0.05 * (y_max - y_min) or 0.5
+    axes.set_xlim(x_min - margin_x, x_max + margin_x)
+    axes.set_ylim(y_min - margin_y, y_max + margin_y)
+    axes.set_aspect("equal")
+    axes.set_xlabel(x_label)
+    axes.set_ylabel(y_label)
+    title_artist = axes.title
+
+    # Pre-group data for O(1) per-frame lookup during animation
+    traj_by_frame = {f: g for f, g in traj.data.groupby(FRAME_COL)}
+
+    # Per-pedestrian sorted arrays for fast trail slicing
+    if trail_length > 0:
+        traj_by_id = {
+            pid: (grp[FRAME_COL].to_numpy(), grp[[X_COL, Y_COL]].to_numpy())
+            for pid, grp in traj.data.sort_values(FRAME_COL).groupby(ID_COL)
+        }
+
+    trail_collection = matplotlib.collections.LineCollection([], linewidths=trail_width, zorder=4)
+    axes.add_collection(trail_collection)
+
+    use_color_data = color_data is not None and color_column is not None
+
+    if use_color_data:
+        color_by_frame = {f: g for f, g in color_data.groupby(FRAME_COL)}
+        if trail_length > 0:
+            color_by_id = {
+                pid: (grp[FRAME_COL].to_numpy(), grp[color_column].to_numpy(dtype=float))
+                for pid, grp in color_data.sort_values(FRAME_COL).groupby(ID_COL)
+            }
+        if vmin is None:
+            vmin = float(color_data[color_column].min())
+        if vmax is None:
+            vmax = float(color_data[color_column].max())
+        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+        # Dummy point so PathCollection has cmap/norm initialized; cleared by _init
+        scatter = axes.scatter(
+            [0],
+            [0],
+            c=[vmin],
+            cmap=cmap_name,
+            norm=norm,
+            s=ped_size,
+            marker=ped_marker,
+            alpha=ped_alpha,
+            zorder=5,
+        )
+        sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap_name)
+        sm.set_array([])
+        fig.colorbar(sm, ax=axes, label=cb_label if cb_label is not None else color_column)
+    else:
+        scatter = axes.scatter(
+            [0],
+            [0],
+            color=ped_color,
+            s=ped_size,
+            marker=ped_marker,
+            alpha=ped_alpha,
+            zorder=5,
+        )
+
+    frames = sorted(traj.data[FRAME_COL].unique())[::frame_step]
+    time_available = traj.frame_rate > 0
+    if interval is None:
+        interval = 1000 / traj.frame_rate if time_available else 50
+
+    def _frame_title(frame: int) -> str:
+        time_str = f"  t = {frame / traj.frame_rate:.2f} s" if time_available else ""
+        frame_str = f"Frame: {frame}{time_str}"
+        return f"{title}  –  {frame_str}" if title else frame_str
+
+    def _init():
+        scatter.set_offsets(np.empty((0, 2)))
+        if use_color_data:
+            scatter.set_array(np.array([]))
+        trail_collection.set_segments([])
+        title_artist.set_text(title)
+        return scatter, trail_collection, title_artist
+
+    def _update(frame: int):
+        frame_peds = traj_by_frame.get(frame)
+
+        if frame_peds is None or frame_peds.empty:
+            scatter.set_offsets(np.empty((0, 2)))
+            if use_color_data:
+                scatter.set_array(np.array([]))
+            trail_collection.set_segments([])
+        else:
+            scatter.set_offsets(frame_peds[[X_COL, Y_COL]].to_numpy())
+            if use_color_data:
+                frame_color = color_by_frame.get(frame)
+                if frame_color is not None:
+                    merged = frame_peds[[ID_COL]].merge(frame_color[[ID_COL, color_column]], on=ID_COL, how="left")
+                    scatter.set_array(merged[color_column].to_numpy(dtype=float))
+                else:
+                    scatter.set_array(np.full(len(frame_peds), np.nan))
+
+            if trail_length > 0:
+                segments: list = []
+                seg_colors: list = []
+                for ped_id in frame_peds[ID_COL]:
+                    frames_arr, xy_arr = traj_by_id[ped_id]
+                    idx = int(np.searchsorted(frames_arr, frame, side="right")) - 1
+                    if idx < 0:
+                        continue
+                    start = max(0, idx - trail_length + 1)
+                    trail_xy = xy_arr[start : idx + 1]
+                    n = len(trail_xy)
+                    if n < 2:
+                        continue
+                    # Consecutive pairs → LineCollection segments, shape (n-1, 2, 2)
+                    new_segs = np.stack([trail_xy[:-1], trail_xy[1:]], axis=1)
+                    segments.extend(new_segs.tolist())
+                    # Alpha fades linearly from near-0 (oldest) to 1 (newest)
+                    alphas = np.linspace(1 / (n - 1), 1.0, n - 1)
+                    if use_color_data:
+                        # Color each segment by the scalar value at its start frame
+                        c_frames_arr, c_vals_arr = color_by_id.get(ped_id, (np.array([]), np.array([])))
+                        trail_frames = frames_arr[start : idx + 1]
+                        if len(c_vals_arr) > 0:
+                            c_idx = np.searchsorted(c_frames_arr, trail_frames, side="right") - 1
+                            valid = c_idx[:-1] >= 0
+                            seg_vals = np.where(
+                                valid,
+                                c_vals_arr[np.clip(c_idx[:-1], 0, len(c_vals_arr) - 1)],
+                                np.nan,
+                            )
+                        else:
+                            seg_vals = np.full(n - 1, np.nan)
+                        rgba = sm.to_rgba(seg_vals)
+                        rgba[:, 3] = alphas
+                    else:
+                        rgba = np.column_stack([np.broadcast_to(trail_color_rgb, (n - 1, 3)), alphas])
+                    seg_colors.extend(rgba.tolist())
+
+                trail_collection.set_segments(segments)
+                if seg_colors:
+                    trail_collection.set_color(seg_colors)
+
+        title_artist.set_text(_frame_title(frame))
+        return scatter, trail_collection, title_artist
+
+    return matplotlib.animation.FuncAnimation(
+        fig,
+        _update,
+        init_func=_init,
+        frames=frames,
+        interval=interval,
+        blit=True,
+    )
 
 
 def plot_measurement_setup(
