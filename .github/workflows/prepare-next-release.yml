@@ -1,0 +1,135 @@
+name: prepare-next-release
+
+# When a stable (non-pre-release) release is published, Zenodo archives it and
+# mints a new DOI. This workflow waits for that archival, then opens the
+# post-release housekeeping PR(s) via scripts/open_release_prs.sh.
+#
+# Only the `released` activity type is used, so pre-releases (v1.6.0-rc1,
+# -alpha, -beta, ...) and drafts never trigger it. The X.Y.Z guard in the
+# metadata step additionally rejects any pre-release version reaching a manual
+# workflow_dispatch run.
+#
+#   * minor/major (vX.Y.0): PR to `main` and a PR into a freshly created
+#     `rls-X.Y` branch.
+#   * patch (vX.Y.Z, Z>0):  PR into `rls-X.Y` and a citation-only PR to `main`.
+#
+# Commits and PRs are authored by the "pedpy-bot" GitHub App. Setup required:
+#   1. Create a GitHub App with slug "pedpy-bot" (Repository permissions:
+#      Contents: read & write, Pull requests: read & write) and install it on
+#      this repository.
+#   2. Add the App ID and its private key as the repository secrets
+#      PEDPY_BOT_APP_ID and PEDPY_BOT_PRIVATE_KEY.
+# The app token carries its own write scope, so the default GITHUB_TOKEN
+# "create and approve pull requests" setting is not needed.
+
+on:
+  release:
+    # `released` (not `published`) so pre-releases and drafts do not trigger.
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Released version, e.g. 1.5.0 (defaults to the latest release tag)."
+        required: false
+      zenodo_doi:
+        description: "Override the Zenodo DOI instead of fetching it (e.g. 10.5281/zenodo.20511313)."
+        required: false
+      pub_date:
+        description: "Override the publication date (YYYY-MM-DD). Requires zenodo_doi."
+        required: false
+
+# The pedpy-bot GitHub App token (minted below) carries its own
+# contents/pull-requests write scope, so the job itself needs no extra
+# permissions. See the app setup notes in the repository documentation.
+permissions: {}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Generate pedpy-bot token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.PEDPY_BOT_APP_ID }}
+          private-key: ${{ secrets.PEDPY_BOT_PRIVATE_KEY }}
+
+      - name: Resolve pedpy-bot commit identity
+        id: bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          uid=$(gh api "/users/${SLUG}[bot]" --jq .id)
+          echo "name=${SLUG}[bot]" >> "$GITHUB_OUTPUT"
+          echo "email=${uid}+${SLUG}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python3 -m pip install --upgrade requests
+
+      - name: Determine release metadata
+        id: meta
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="${INPUT_VERSION:-${RELEASE_TAG#v}}"
+          version="${version#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a stable X.Y.Z version, got '$version'." >&2
+            echo "Pre-releases (-alpha/-beta/-rc) are not supported here." >&2
+            exit 1
+          fi
+          IFS='.' read -r major minor patch <<< "$version"
+          if [ "$patch" -eq 0 ]; then
+            release_type="minor"
+          else
+            release_type="patch"
+          fi
+          {
+            echo "version=$version"
+            echo "release_type=$release_type"
+            echo "rls_branch=rls-${major}.${minor}"
+            echo "release_tag=v${version}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Resolve Zenodo record
+        id: zenodo
+        env:
+          ZENODO_DOI: ${{ github.event.inputs.zenodo_doi }}
+          PUB_DATE: ${{ github.event.inputs.pub_date }}
+        run: |
+          if [ -n "$ZENODO_DOI" ]; then
+            echo "doi=$ZENODO_DOI" >> "$GITHUB_OUTPUT"
+            echo "publication_date=${PUB_DATE:-$(date +%F)}" >> "$GITHUB_OUTPUT"
+          else
+            # Poll Zenodo for up to ~20 minutes while it finishes archiving.
+            python3 scripts/zenodo.py \
+              --version "${{ steps.meta.outputs.version }}" \
+              --retries 20 --delay 60 >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open release PR(s)
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GIT_BOT_NAME: ${{ steps.bot.outputs.name }}
+          GIT_BOT_EMAIL: ${{ steps.bot.outputs.email }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          RELEASE_TYPE: ${{ steps.meta.outputs.release_type }}
+          RLS_BRANCH: ${{ steps.meta.outputs.rls_branch }}
+          RELEASE_TAG: ${{ steps.meta.outputs.release_tag }}
+          ZENODO_DOI: ${{ steps.zenodo.outputs.doi }}
+          PUB_DATE: ${{ steps.zenodo.outputs.publication_date }}
+        run: bash scripts/open_release_prs.sh

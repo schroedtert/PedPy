@@ -7,3 +7,4 @@ sphinx-notfound-page==1.1.0
 sphinx-favicon==1.1.0
 sphinx-book-theme==1.2.0
 sphinx-autoapi==3.8.0
+requests~=2.32
